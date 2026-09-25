@@ -277,6 +277,42 @@ interpole la couleur. La pastille se colore progressivement pendant que le doigt
 - Un composant utilisé par une seule fonctionnalité vit dans `features/<nom>/components/`.
   Il ne monte dans `components/ui/` que le jour où un **deuxième** écran s'en sert.
 
+## Publier une nouvelle version
+
+### Une correction JavaScript seulement
+
+Pas de build, pas d'Apple, pas d'attente — la mise à jour arrive sur vos
+téléphones au prochain lancement :
+
+```bash
+npx eas-cli@latest update --branch production --message "ce qui change"
+```
+
+C'est le cas de loin le plus fréquent : texte, couleur, logique d'écran.
+
+### Un changement natif (nouvelle dépendance, icône, permissions)
+
+```bash
+npx eas-cli@latest build --platform ios --profile production
+npx eas-cli@latest submit --platform ios --latest
+```
+
+⚠️ **Si `.env` a changé**, pousse-le d'abord (voir plus haut), sinon l'app
+compilée partira sans configuration Firebase et se fermera au démarrage.
+
+### Identifiants à ne jamais perdre
+
+| | |
+|---|---|
+| Identifiant de lot | `com.hadibere.bebeetboubou` |
+| Projet EAS | `0283cfaa-c664-4fbc-8bd9-69e88a3a6ddd` |
+| App Store Connect | `6816258356` |
+| Projet Firebase | `bebe-et-boubou` |
+
+⚠️ **Ne jamais supprimer la fiche App Store Connect.** Apple ne libère ni
+l'identifiant de lot ni l'UGS d'une app supprimée — il faudrait tout
+reconstruire sous un nouvel identifiant. C'est déjà arrivé une fois.
+
 ## Feuille de route
 
 - [x] **Étape 1** — Projet, architecture, design system, tableau à 4 colonnes (données d'essai)
@@ -284,4 +320,4 @@ interpole la couleur. La pastille se colore progressivement pendant que le doigt
 - [x] **Étape 3** — Glisser-déposer entre colonnes (appui long + barre de dépôt)
 - [x] **Étape 4** — Firebase : authentification + Firestore en temps réel
 - [x] **Étape 5** — Notifications : création, assignation, blocage (jeton à valider sur iPhone réel)
-- [ ] **Étape 6** — Icône, écran de démarrage, build EAS et TestFlight
+- [x] **Étape 6** — Icône, écran de démarrage, build EAS, envoi TestFlight
