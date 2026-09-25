@@ -152,6 +152,29 @@ La configuration vit dans un fichier `.env` **jamais versionné**. Copie
 Ces valeurs ne sont pas des secrets : elles sont embarquées dans l'app livrée.
 La sécurité réelle vient de `firestore.rules`.
 
+### ⚠️ Les variables doivent aussi exister sur EAS
+
+`.env` est **hors du dépôt**, et EAS construit à partir de Git : les serveurs
+de build ne voient donc pas ce fichier. Sans précaution, l'app compilée part
+**sans configuration Firebase** et se ferme au démarrage — l'installation
+réussit, le lancement échoue.
+
+Après toute modification de `.env`, il faut pousser les valeurs :
+
+```bash
+npx eas-cli@latest env:push preview --path .env --force
+npx eas-cli@latest env:push production --path .env --force
+```
+
+Pour vérifier ce que les serveurs voient réellement :
+
+```bash
+npx eas-cli@latest env:list preview
+```
+
+Le build affiche un avertissement quand il ne trouve rien — il mérite d'être lu :
+*« No environment variables … found for the "preview" environment »*.
+
 ### Les comptes
 
 Il n'y a **pas d'inscription dans l'app**. Les deux comptes se créent une fois
