@@ -1,107 +1,154 @@
-import { createContext, use, useCallback, useMemo, useReducer, type ReactNode } from 'react';
+import {
+  addDoc,
+  collection,
+  deleteDoc,
+  doc,
+  onSnapshot,
+  updateDoc,
+} from 'firebase/firestore';
+import { createContext, use, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 
-import { MOCK_TASKS } from '@/data/mock/tasks';
+import { useAuth } from '@/data/auth/AuthProvider';
+import { db } from '@/data/firebase/app';
 import { nextOrderIn, type Task, type TaskDraft, type TaskStatus } from '@/domain/task';
+import { draftToDocument, taskFromDocument } from './mapping';
 
 /**
  * LE CONTRAT entre l'interface et les donnees.
  *
  * Tout l'ecran de tableau et tous les formulaires ne connaissent QUE ces
- * cinq fonctions. Ils ignorent totalement d'ou viennent les taches.
- *
- * A l'etape 4, on remplacera l'implementation ci-dessous par un abonnement
- * temps reel a Firestore — et pas une seule ligne de composant ne bougera.
+ * fonctions. Ils ignorent totalement d'ou viennent les taches — et c'est
+ * exactement ce qui a permis de passer d'un tableau en memoire a Firestore
+ * sans toucher une seule ligne de composant.
  */
 interface TasksContextValue {
   tasks: Task[];
+  /** Vrai tant que la premiere reponse de Firestore n'est pas arrivee. */
+  isLoading: boolean;
   getTask: (id: string) => Task | undefined;
   createTask: (draft: TaskDraft) => void;
   updateTask: (id: string, draft: TaskDraft) => void;
   deleteTask: (id: string) => void;
-  /** Raccourci pour le glisser-deposer de l'etape 3. */
+  /** Raccourci utilise par le glisser-deposer. */
   moveTask: (id: string, status: TaskStatus) => void;
 }
 
 const TasksContext = createContext<TasksContextValue | null>(null);
 
-/* --------------------------------- Reducer ---------------------------------- */
+/** Toutes les taches du foyer vivent dans une seule collection. */
+const TASKS_COLLECTION = 'tasks';
 
-type TasksAction =
-  | { type: 'create'; draft: TaskDraft }
-  | { type: 'update'; id: string; draft: TaskDraft }
-  | { type: 'delete'; id: string }
-  | { type: 'move'; id: string; status: TaskStatus };
+/** Constante partagee : evite de recreer un tableau vide a chaque rendu. */
+const NO_TASKS: Task[] = [];
 
 /**
- * Un reducer plutot que plusieurs useState : toutes les facons de modifier
- * la liste sont rassemblees ici, donc il n'y a qu'un seul endroit a lire
- * pour comprendre ce qui peut arriver aux taches.
+ * Les ecritures sont volontairement "tire et oublie" : on ne fait pas
+ * attendre l'interface. Firestore mémorise les modifications hors ligne et
+ * les rejoue a la reconnexion, et il met a jour son cache local
+ * immediatement — la carte apparait donc instantanement a l'ecran.
+ *
+ * Un echec ici signifie presque toujours une regle de securite qui refuse
+ * l'operation : on veut le voir passer dans les logs, pas l'ignorer.
  */
-function tasksReducer(tasks: Task[], action: TasksAction): Task[] {
-  switch (action.type) {
-    case 'create':
-      return [
-        ...tasks,
-        {
-          ...action.draft,
-          id: createLocalId(),
-          createdAt: Date.now(),
-          order: nextOrderIn(tasks, action.draft.status),
-        },
-      ];
-
-    case 'update':
-      return tasks.map((task) => {
-        if (task.id !== action.id) return task;
-
-        // Si la tache change de colonne, elle repart en bas de sa nouvelle pile.
-        const changedColumn = task.status !== action.draft.status;
-
-        return {
-          ...task,
-          ...action.draft,
-          order: changedColumn ? nextOrderIn(tasks, action.draft.status) : task.order,
-        };
-      });
-
-    case 'delete':
-      return tasks.filter((task) => task.id !== action.id);
-
-    case 'move':
-      return tasks.map((task) =>
-        task.id === action.id
-          ? { ...task, status: action.status, order: nextOrderIn(tasks, action.status) }
-          : task,
-      );
-  }
+function reportWriteFailure(operation: string) {
+  return (error: unknown) => {
+    console.warn(`[tasks] ${operation} a échoué :`, error);
+  };
 }
-
-/**
- * Identifiant local. Firestore generera les siens a l'etape 4 ;
- * en attendant, horodatage + suffixe aleatoire suffit largement a deux.
- */
-function createLocalId(): string {
-  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
-}
-
-/* -------------------------------- Fournisseur ------------------------------- */
 
 export function TasksProvider({ children }: { children: ReactNode }) {
-  // Etape 4 : MOCK_TASKS disparait, remplace par onSnapshot() sur Firestore.
-  const [tasks, dispatch] = useReducer(tasksReducer, MOCK_TASKS);
+  const { user } = useAuth();
+
+  /**
+   * On memorise POUR QUEL utilisateur les taches ont ete recues.
+   *
+   * Sans cette precaution, se deconnecter puis se reconnecter avec l'autre
+   * compte afficherait un instant les taches du precedent. Et cela permet
+   * de deduire `tasks` et `isLoading` pendant le rendu plutot que de les
+   * recalculer dans un effet, ce qui provoquerait un rendu de trop.
+   */
+  const [received, setReceived] = useState<{ userId: string; tasks: Task[] } | null>(null);
+
+  useEffect(() => {
+    // Pas de session : aucune ecoute a ouvrir, les regles la refuseraient.
+    if (!user) return;
+
+    const userId = user.uid;
+
+    /**
+     * `onSnapshot` est ce qui rend l'app collaborative : quand Boubou cree
+     * une tache sur son iPhone, ce callback se declenche sur celui de Bebe
+     * en une fraction de seconde. Aucun rafraichissement manuel nulle part.
+     */
+    const unsubscribe = onSnapshot(
+      collection(db, TASKS_COLLECTION),
+      (snapshot) => {
+        setReceived({ userId, tasks: snapshot.docs.map(taskFromDocument) });
+      },
+      (error) => {
+        console.warn('[tasks] écoute interrompue :', error);
+        // On sort quand meme de l'attente : mieux vaut un tableau vide
+        // qu'un chargement qui tourne indefiniment.
+        setReceived({ userId, tasks: [] });
+      },
+    );
+
+    return unsubscribe;
+  }, [user]);
+
+  // Deduit pendant le rendu, jamais dans un effet.
+  const isForCurrentUser = user !== null && received?.userId === user.uid;
+  const tasks = isForCurrentUser && received ? received.tasks : NO_TASKS;
+  const isLoading = user !== null && !isForCurrentUser;
 
   const getTask = useCallback((id: string) => tasks.find((task) => task.id === id), [tasks]);
 
+  const createTask = useCallback(
+    (draft: TaskDraft) => {
+      const order = nextOrderIn(tasks, draft.status);
+
+      addDoc(collection(db, TASKS_COLLECTION), {
+        ...draftToDocument(draft, order),
+        createdAt: Date.now(),
+      }).catch(reportWriteFailure('création'));
+    },
+    [tasks],
+  );
+
+  const updateTask = useCallback(
+    (id: string, draft: TaskDraft) => {
+      const current = tasks.find((task) => task.id === id);
+
+      // Si la tache change de colonne, elle repart en bas de sa nouvelle pile.
+      const order =
+        current && current.status !== draft.status
+          ? nextOrderIn(tasks, draft.status)
+          : (current?.order ?? 0);
+
+      updateDoc(doc(db, TASKS_COLLECTION, id), draftToDocument(draft, order)).catch(
+        reportWriteFailure('modification'),
+      );
+    },
+    [tasks],
+  );
+
+  const deleteTask = useCallback((id: string) => {
+    deleteDoc(doc(db, TASKS_COLLECTION, id)).catch(reportWriteFailure('suppression'));
+  }, []);
+
+  const moveTask = useCallback(
+    (id: string, status: TaskStatus) => {
+      updateDoc(doc(db, TASKS_COLLECTION, id), {
+        status,
+        order: nextOrderIn(tasks, status),
+      }).catch(reportWriteFailure('déplacement'));
+    },
+    [tasks],
+  );
+
   const value = useMemo<TasksContextValue>(
-    () => ({
-      tasks,
-      getTask,
-      createTask: (draft) => dispatch({ type: 'create', draft }),
-      updateTask: (id, draft) => dispatch({ type: 'update', id, draft }),
-      deleteTask: (id) => dispatch({ type: 'delete', id }),
-      moveTask: (id, status) => dispatch({ type: 'move', id, status }),
-    }),
-    [tasks, getTask],
+    () => ({ tasks, isLoading, getTask, createTask, updateTask, deleteTask, moveTask }),
+    [tasks, isLoading, getTask, createTask, updateTask, deleteTask, moveTask],
   );
 
   return <TasksContext value={value}>{children}</TasksContext>;

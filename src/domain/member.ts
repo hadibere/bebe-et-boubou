@@ -1,32 +1,29 @@
 /**
- * Les membres du foyer. L'app est faite pour exactement deux personnes,
- * donc pas de gestion d'equipe : une constante suffit.
+ * Les membres du foyer.
  *
- * A l'etape Firebase, `id` deviendra l'UID Firebase Auth et cette liste
- * sera lue depuis Firestore — mais la forme restera identique.
+ * Depuis le passage a Firebase, `id` EST l'identifiant Firebase Auth (UID)
+ * de la personne. C'est ce qui permet a `assigneeId` de designer quelqu'un
+ * de facon fiable, et ce sera aussi la cle pour lui envoyer une notification.
+ *
+ * Les documents vivent dans la collection `members`, ajoutes a la main dans
+ * la console Firebase : l'app ne permet ni inscription, ni ajout de membre.
  */
 export interface Member {
+  /** L'UID Firebase Auth. */
   id: string;
   name: string;
   /** Emoji-avatar, affiche dans la pastille d'assignation. */
   avatar: string;
   /** Cle d'une couleur de `taskColors`, pour reconnaitre la personne d'un coup d'oeil. */
-  color: 'rose' | 'sky';
+  color: MemberColor;
 }
 
-export const MEMBERS: Member[] = [
-  { id: 'bebe', name: 'Bébé', avatar: '🐱', color: 'rose' },
-  { id: 'boubou', name: 'Boubou', avatar: '🐻', color: 'sky' },
-];
+export const MEMBER_COLORS = ['rose', 'sky'] as const;
+export type MemberColor = (typeof MEMBER_COLORS)[number];
 
-/**
- * Qui se sert de l'app sur CET appareil.
- * A l'etape 4 cette constante disparaitra au profit de l'utilisateur
- * connecte via Firebase Auth — c'est le seul endroit a changer.
- */
-export const CURRENT_MEMBER_ID = 'bebe';
-
-export function findMember(id: string | null): Member | undefined {
-  if (!id) return undefined;
-  return MEMBERS.find((member) => member.id === id);
-}
+/** Valeurs de repli si un document `members` est incomplet. */
+export const FALLBACK_MEMBER: Omit<Member, 'id'> = {
+  name: '???',
+  avatar: '🐾',
+  color: 'rose',
+};

@@ -1,0 +1,60 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    /**
+     * Qui a le droit d'entrer ?
+     *
+     * Il ne suffit PAS d'etre authentifie. L'API d'authentification de
+     * Firebase permet a n'importe qui, avec la cle publique de l'app, de se
+     * creer un compte. On exige donc en plus un document a son nom dans
+     * `members`, que seule la console peut creer.
+     *
+     * Le foyer compte exactement deux personnes : on ajoute leurs deux
+     * documents a la main, une fois pour toutes.
+     */
+    function isMember() {
+      return request.auth != null
+        && exists(/databases/$(database)/documents/members/$(request.auth.uid));
+    }
+
+    /** Verifie qu'une tache a la forme attendue, avec des valeurs connues. */
+    function isValidTask(task) {
+      return task.keys().hasAll([
+              'title', 'status', 'priority', 'color',
+              'assigneeId', 'createdBy', 'order'
+            ])
+        && task.title is string
+        && task.title.size() > 0
+        && task.title.size() <= 120
+        && (task.notes == null || (task.notes is string && task.notes.size() <= 200))
+        && task.status in ['todo', 'in_progress', 'blocked', 'done']
+        && task.priority in ['low', 'medium', 'high']
+        && task.color in ['rose', 'lavender', 'mint', 'butter', 'sky', 'peach']
+        && (task.assigneeId == null || task.assigneeId is string)
+        && task.createdBy is string
+        && task.order is number;
+    }
+
+    /**
+     * Les membres du foyer.
+     * Lecture par les membres, ecriture uniquement depuis la console Firebase.
+     */
+    match /members/{memberId} {
+      allow read: if isMember();
+      allow write: if false;
+    }
+
+    /** Les taches, partagees par les deux membres. */
+    match /tasks/{taskId} {
+      allow read, delete: if isMember();
+      allow create, update: if isMember() && isValidTask(request.resource.data);
+    }
+
+    /** Tout le reste est refuse. */
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

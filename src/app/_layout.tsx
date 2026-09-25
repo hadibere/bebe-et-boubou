@@ -10,10 +10,13 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
+import { AuthProvider, useAuth } from '@/data/auth/AuthProvider';
+import { MembersProvider } from '@/data/members/MembersProvider';
 import { TasksProvider } from '@/data/tasks/TasksProvider';
 
-// On garde l'ecran de demarrage tant que les polices ne sont pas pretes,
-// sinon l'app clignote avec la police systeme pendant une fraction de seconde.
+// On garde l'ecran de demarrage tant que les polices ne sont pas pretes ET
+// qu'on ne sait pas si une session existe : sinon l'app clignoterait en
+// affichant brievement l'ecran de connexion a quelqu'un de deja connecte.
 SplashScreen.preventAutoHideAsync();
 
 /**
@@ -42,28 +45,60 @@ export default function RootLayout() {
     Quicksand_700Bold,
   });
 
-  useEffect(() => {
-    if (fontsLoaded || fontError) {
-      SplashScreen.hideAsync();
-    }
-  }, [fontsLoaded, fontError]);
-
   if (!fontsLoaded && !fontError) {
     return null;
   }
 
   return (
     // Requis par react-native-gesture-handler : sans cette racine,
-    // le glisser-deposer de l'etape 3 ne recevrait aucun geste.
+    // le glisser-deposer ne recevrait aucun geste.
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <TasksProvider>
-        <StatusBar style="dark" />
-        <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="index" />
-          <Stack.Screen name="task/new" options={SHEET_OPTIONS} />
-          <Stack.Screen name="task/[id]" options={SHEET_OPTIONS} />
-        </Stack>
-      </TasksProvider>
+      <AuthProvider>
+        <MembersProvider>
+          <TasksProvider>
+            <StatusBar style="dark" />
+            <RootNavigator />
+          </TasksProvider>
+        </MembersProvider>
+      </AuthProvider>
     </GestureHandlerRootView>
+  );
+}
+
+/**
+ * Le routeur doit etre A L'INTERIEUR de AuthProvider pour savoir
+ * si quelqu'un est connecte.
+ */
+function RootNavigator() {
+  const { user, isLoading } = useAuth();
+
+  useEffect(() => {
+    if (!isLoading) {
+      SplashScreen.hideAsync();
+    }
+  }, [isLoading]);
+
+  // Firebase restaure la session depuis le stockage local : tant que ce
+  // n'est pas fini, on ne sait pas quoi afficher, donc on n'affiche rien
+  // et l'ecran de demarrage reste visible.
+  if (isLoading) {
+    return null;
+  }
+
+  return (
+    <Stack screenOptions={{ headerShown: false }}>
+      {/* `Stack.Protected` retire purement et simplement les routes du
+          routeur quand la condition est fausse. Impossible d'atteindre le
+          tableau sans session, meme via un lien profond. */}
+      <Stack.Protected guard={user !== null}>
+        <Stack.Screen name="index" />
+        <Stack.Screen name="task/new" options={SHEET_OPTIONS} />
+        <Stack.Screen name="task/[id]" options={SHEET_OPTIONS} />
+      </Stack.Protected>
+
+      <Stack.Protected guard={user === null}>
+        <Stack.Screen name="sign-in" />
+      </Stack.Protected>
+    </Stack>
   );
 }

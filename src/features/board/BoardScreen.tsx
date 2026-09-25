@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useMemo, useRef } from 'react';
-import { Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native';
 import Animated, {
   useAnimatedScrollHandler,
   useAnimatedStyle,
@@ -11,8 +11,9 @@ import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 
 import { MemberAvatar } from '@/components/ui/MemberAvatar';
 import { PawPrint } from '@/components/ui/PawPrint';
+import { useAuth } from '@/data/auth/AuthProvider';
+import { useMembers } from '@/data/members/MembersProvider';
 import { useTasks } from '@/data/tasks/TasksProvider';
-import { MEMBERS } from '@/domain/member';
 import { countByStatus, TASK_STATUSES, tasksForStatus, type Task } from '@/domain/task';
 import { haptics } from '@/lib/haptics';
 import { motion } from '@/theme/tokens';
@@ -42,7 +43,7 @@ function Board() {
   // L'ecran ne sait pas d'ou viennent les taches : c'est tout l'interet
   // de passer par ce hook. A l'etape 4, Firestore prendra la place
   // sans que cette ligne change.
-  const { tasks, moveTask } = useTasks();
+  const { tasks, isLoading, moveTask } = useTasks();
 
   // Pendant qu'une carte est soulevee, on fige les deux defilements :
   // sinon le moindre mouvement du doigt ferait glisser le tableau.
@@ -68,6 +69,15 @@ function Board() {
     haptics.select();
     scrollRef.current?.scrollTo({ x: index * width, animated: true });
   };
+
+  if (isLoading) {
+    return (
+      <View style={styles.screen}>
+        <BoardHeader />
+        <LoadingTasks />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.screen}>
@@ -110,8 +120,31 @@ function Board() {
 
 /* --------------------------------- En-tete ---------------------------------- */
 
+/** Un petit temps d'attente, le temps que Firestore reponde. */
+function LoadingTasks() {
+  const { theme } = useUnistyles();
+
+  return (
+    <View style={styles.loading}>
+      <ActivityIndicator color={theme.colors.primary} />
+      <Text style={styles.loadingText}>On récupère vos tâches…</Text>
+    </View>
+  );
+}
+
 function BoardHeader() {
   const { theme } = useUnistyles();
+  const { signOut } = useAuth();
+  const { members } = useMembers();
+
+  // La deconnexion sert rarement : on la cache derriere les pastilles
+  // plutot que d'encombrer l'ecran avec un bouton permanent.
+  const confirmSignOut = () => {
+    Alert.alert('Se déconnecter ?', 'Il faudra retaper ton mot de passe pour revenir.', [
+      { text: 'Annuler', style: 'cancel' },
+      { text: 'Se déconnecter', style: 'destructive', onPress: () => void signOut() },
+    ]);
+  };
 
   return (
     <View style={styles.header}>
@@ -123,13 +156,18 @@ function BoardHeader() {
         </View>
       </View>
 
-      <View style={styles.headerMembers}>
-        {MEMBERS.map((member, index) => (
+      <Pressable
+        onPress={confirmSignOut}
+        style={styles.headerMembers}
+        accessibilityRole="button"
+        accessibilityLabel="Se déconnecter"
+      >
+        {members.map((member, index) => (
           <View key={member.id} style={index > 0 ? styles.memberOverlap : undefined}>
             <MemberAvatar memberId={member.id} size={32} />
           </View>
         ))}
-      </View>
+      </Pressable>
     </View>
   );
 }
@@ -207,6 +245,18 @@ const styles = StyleSheet.create((theme, rt) => ({
   headerMembers: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  loading: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: theme.spacing.lg,
+    paddingBottom: theme.spacing.xxxl * 2,
+  },
+  loadingText: {
+    fontFamily: theme.fontFamily.regular,
+    fontSize: theme.fontSize.md,
+    color: theme.colors.textMuted,
   },
   memberOverlap: {
     // Chevauchement leger des pastilles : ca fait "couple".

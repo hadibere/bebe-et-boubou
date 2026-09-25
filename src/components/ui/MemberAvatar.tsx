@@ -1,7 +1,7 @@
 import { Text, View } from 'react-native';
 import { StyleSheet } from 'react-native-unistyles';
 
-import { findMember } from '@/domain/member';
+import { useMembers } from '@/data/members/MembersProvider';
 
 interface MemberAvatarProps {
   memberId: string | null;
@@ -13,6 +13,7 @@ interface MemberAvatarProps {
  * Si personne n'est assigne, on affiche une pastille neutre : la tache est "pour nous deux".
  */
 export function MemberAvatar({ memberId, size = 26 }: MemberAvatarProps) {
+  const { findMember } = useMembers();
   const member = findMember(memberId);
 
   styles.useVariants({ assigned: member ? member.color : 'none' });

@@ -5,7 +5,8 @@ import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { Chip } from '@/components/ui/Chip';
 import { PawPrint } from '@/components/ui/PawPrint';
 import { PriorityPaws } from '@/components/ui/PriorityPaws';
-import { CURRENT_MEMBER_ID, MEMBERS } from '@/domain/member';
+import { useAuth } from '@/data/auth/AuthProvider';
+import { useMembers } from '@/data/members/MembersProvider';
 import {
   PRIORITY_LABELS,
   STATUS_EMOJI,
@@ -38,6 +39,8 @@ interface TaskFormProps {
  */
 export function TaskForm({ initialTask, title: heading, submitLabel, onSubmit, onDelete }: TaskFormProps) {
   const { theme } = useUnistyles();
+  const { user } = useAuth();
+  const { members } = useMembers();
 
   const [title, setTitle] = useState(initialTask?.title ?? '');
   const [notes, setNotes] = useState(initialTask?.notes ?? '');
@@ -59,7 +62,9 @@ export function TaskForm({ initialTask, title: heading, submitLabel, onSubmit, o
       color,
       assigneeId,
       status,
-      createdBy: initialTask?.createdBy ?? CURRENT_MEMBER_ID,
+      // On prend l'UID directement de la session : il existe toujours,
+      // alors que le document `members` pourrait ne pas etre encore charge.
+      createdBy: initialTask?.createdBy ?? user?.uid ?? '',
     });
   };
 
@@ -132,7 +137,7 @@ export function TaskForm({ initialTask, title: heading, submitLabel, onSubmit, o
 
         <Field label="Pour qui ?">
           <View style={styles.chipRow}>
-            {MEMBERS.map((member) => (
+            {members.map((member) => (
               <Chip
                 key={member.id}
                 label={member.name}

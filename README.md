@@ -27,8 +27,9 @@ La règle tient en une phrase : **`src/app/` c'est le plan du métro, le reste d
 ```
 src/
   app/                    Routage expo-router UNIQUEMENT (1 fichier = 1 écran)
-    _layout.tsx           Providers globaux : polices, gestes, déclaration des routes
+    _layout.tsx           Providers globaux + routes protégées par la session
     index.tsx             Route "/"           → BoardScreen
+    sign-in.tsx           Route "/sign-in"    → SignInScreen
     task/new.tsx          Route "/task/new"   → NewTaskScreen  (feuille modale)
     task/[id].tsx         Route "/task/<id>"  → EditTaskScreen (feuille modale)
 
@@ -42,8 +43,14 @@ src/
     member.ts             Les deux membres du foyer
 
   data/                   Accès aux données
-    tasks/TasksProvider.tsx  LE contrat : useTasks() expose tasks + create/update/delete/move
-    mock/tasks.ts            Jeu d'essai — sera remplacé par Firestore (étape 4)
+    firebase/
+      config.ts           Lecture et validation des variables d'environnement
+      app.ts              Initialisation Firebase (+ bascule émulateurs)
+    auth/AuthProvider.tsx    Session : useAuth() + messages d'erreur en français
+    members/MembersProvider.tsx  Les deux membres, lus depuis Firestore
+    tasks/
+      TasksProvider.tsx   LE contrat : useTasks() + Firestore temps réel
+      mapping.ts          Traduction document Firestore ↔ type Task
 
   features/               Une fonctionnalité = un dossier autonome
     board/
@@ -56,6 +63,7 @@ src/
         DragPreview.tsx   La carte qui suit le doigt
       drag/
         DragContext.tsx   L'état partagé du geste
+    auth/SignInScreen.tsx  Connexion (pas d'inscription : comptes créés en console)
     tasks/
       NewTaskScreen.tsx   Création
       EditTaskScreen.tsx  Modification + suppression
@@ -129,6 +137,48 @@ modale (ses calculs sont en coordonnées écran). On utilise
 Conséquence concrète : à l'étape 4, brancher Firestore ne modifiera **pas une seule
 ligne** de ce fichier. C'est le noyau stable autour duquel tout le reste tourne.
 
+## Firebase
+
+### Configuration
+
+La configuration vit dans un fichier `.env` **jamais versionné**. Copie
+`.env.example` et remplis-le avec les valeurs de la console Firebase
+(*Paramètres du projet → Vos applications → application Web*).
+
+Ces valeurs ne sont pas des secrets : elles sont embarquées dans l'app livrée.
+La sécurité réelle vient de `firestore.rules`.
+
+### Les comptes
+
+Il n'y a **pas d'inscription dans l'app**. Les deux comptes se créent une fois
+pour toutes dans la console (*Authentication → Users*), puis il faut ajouter,
+pour chacun, un document dans la collection `members` dont **l'identifiant est
+son UID** :
+
+```
+members/<UID>  →  { name: "Bébé", avatar: "🐱", color: "rose" }
+```
+
+### Pourquoi une collection `members`
+
+Les règles n'exigent pas seulement d'être authentifié, et c'est important :
+n'importe qui possédant la clé publique de l'app **peut se créer un compte**
+via l'API Firebase. Être authentifié ne prouve donc rien.
+
+On exige en plus un document à son nom dans `members`, que seule la console
+peut créer (`allow write: if false`). Vérifié sur les émulateurs : un compte
+créé de l'extérieur reçoit bien un `403` en lecture comme en écriture.
+
+### Tester sans toucher au vrai projet
+
+```bash
+firebase emulators:start --project demo-bebe --only auth,firestore
+```
+
+Mets `EXPO_PUBLIC_USE_FIREBASE_EMULATOR=1` dans `.env` : l'app tape alors sur
+les émulateurs locaux, avec les vraies règles chargées. Dans ce mode seulement,
+l'écran de connexion arrive pré-rempli avec le compte de test.
+
 ## Le trio qui rend l'interface fluide
 
 En React Native, la fluidité ne vient pas de la bibliothèque de styles :
@@ -157,6 +207,6 @@ interpole la couleur. La pastille se colore progressivement pendant que le doigt
 - [x] **Étape 1** — Projet, architecture, design system, tableau à 4 colonnes (données d'essai)
 - [x] **Étape 2** — Création / édition / suppression : titre, note, importance, couleur, assignation, colonne
 - [x] **Étape 3** — Glisser-déposer entre colonnes (appui long + barre de dépôt)
-- [ ] **Étape 4** — Firebase : authentification + Firestore en temps réel
+- [x] **Étape 4** — Firebase : authentification + Firestore en temps réel
 - [ ] **Étape 5** — Notifications push quand l'autre crée une tâche
 - [ ] **Étape 6** — Icône, écran de démarrage, build EAS et TestFlight

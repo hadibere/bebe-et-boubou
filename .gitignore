@@ -39,3 +39,11 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# Configuration Firebase locale — jamais versionnée
+.env
+
+# Journaux des émulateurs Firebase
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
