@@ -1,4 +1,5 @@
-import { useMemo, useRef, useState } from 'react';
+import { router } from 'expo-router';
+import { useMemo, useRef } from 'react';
 import { Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native';
 import Animated, {
   useAnimatedScrollHandler,
@@ -10,9 +11,9 @@ import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 
 import { MemberAvatar } from '@/components/ui/MemberAvatar';
 import { PawPrint } from '@/components/ui/PawPrint';
-import { MOCK_TASKS } from '@/data/mock/tasks';
+import { useTasks } from '@/data/tasks/TasksProvider';
 import { MEMBERS } from '@/domain/member';
-import { countByStatus, TASK_STATUSES, tasksForStatus, type Task } from '@/domain/task';
+import { countByStatus, TASK_STATUSES, tasksForStatus } from '@/domain/task';
 import { haptics } from '@/lib/haptics';
 import { motion } from '@/theme/tokens';
 import { BoardColumn } from './components/BoardColumn';
@@ -22,8 +23,10 @@ export function BoardScreen() {
   const { width } = useWindowDimensions();
   const scrollRef = useRef<ScrollView>(null);
 
-  // Etape 4 : cette ligne sera remplacee par un abonnement temps reel a Firestore.
-  const [tasks] = useState<Task[]>(MOCK_TASKS);
+  // L'ecran ne sait pas d'ou viennent les taches : c'est tout l'interet
+  // de passer par ce hook. A l'etape 4, Firestore prendra la place
+  // sans que cette ligne change.
+  const { tasks } = useTasks();
 
   const counts = useMemo(() => countByStatus(tasks), [tasks]);
 
@@ -63,6 +66,7 @@ export function BoardScreen() {
             status={status}
             tasks={tasksForStatus(tasks, status)}
             width={width}
+            onTaskPress={(task) => router.push({ pathname: '/task/[id]', params: { id: task.id } })}
           />
         ))}
       </Animated.ScrollView>
@@ -126,8 +130,10 @@ function AddTaskButton() {
         onPressOut={() => {
           pressed.value = 0;
         }}
-        // TODO (etape 2) : ouvrir le formulaire de creation via router.push('/task/new')
-        onPress={() => haptics.pick()}
+        onPress={() => {
+          haptics.pick();
+          router.push('/task/new');
+        }}
         style={styles.fabPressable}
       >
         <PawPrint size={30} color={theme.colors.onAccent} />

@@ -27,8 +27,10 @@ La règle tient en une phrase : **`src/app/` c'est le plan du métro, le reste d
 ```
 src/
   app/                    Routage expo-router UNIQUEMENT (1 fichier = 1 écran)
-    _layout.tsx           Providers globaux : polices, gestes, barre d'état
-    index.tsx             Route "/" → pointe vers BoardScreen
+    _layout.tsx           Providers globaux : polices, gestes, déclaration des routes
+    index.tsx             Route "/"           → BoardScreen
+    task/new.tsx          Route "/task/new"   → NewTaskScreen  (feuille modale)
+    task/[id].tsx         Route "/task/<id>"  → EditTaskScreen (feuille modale)
 
   theme/                  Le design system
     tokens.ts             Valeurs brutes : couleurs, espacements, rayons, ombres
@@ -40,7 +42,8 @@ src/
     member.ts             Les deux membres du foyer
 
   data/                   Accès aux données
-    mock/tasks.ts         Jeu d'essai — sera remplacé par Firestore (étape 4)
+    tasks/TasksProvider.tsx  LE contrat : useTasks() expose tasks + create/update/delete/move
+    mock/tasks.ts            Jeu d'essai — sera remplacé par Firestore (étape 4)
 
   features/               Une fonctionnalité = un dossier autonome
     board/
@@ -49,11 +52,18 @@ src/
         TaskCard.tsx
         ColumnTabs.tsx
         BoardColumn.tsx
+    tasks/
+      NewTaskScreen.tsx   Création
+      EditTaskScreen.tsx  Modification + suppression
+      components/
+        TaskForm.tsx      LE formulaire, partagé par les deux écrans
+        ColorPicker.tsx   Les six pastilles de couleur
 
   components/ui/          Briques réutilisables partout
     PawPrint.tsx          L'empreinte de patte en SVG
     PriorityPaws.tsx      La jauge d'importance (1 à 3 pattes)
     MemberAvatar.tsx      La pastille de la personne assignée
+    Chip.tsx              La pastille à choix unique (importance, personne, colonne)
 
   lib/                    Utilitaires transverses
     haptics.ts            Retours haptiques centralisés
@@ -69,6 +79,26 @@ ce qui couvre routes et composants d'un coup.
 Résultat : un fichier de route ne fait que pointer vers un écran. Le routage
 reste lisible d'un coup d'œil, et on ne peut pas se tromper sur l'endroit
 où écrire un composant.
+
+### Pourquoi `useTasks()` et pas un `useState` dans l'écran
+
+`src/data/tasks/TasksProvider.tsx` est le **seul** fichier qui sait où sont
+stockées les tâches. Le tableau et les formulaires ne connaissent que cinq
+fonctions : `tasks`, `createTask`, `updateTask`, `deleteTask`, `moveTask`.
+
+À l'étape 4, on remplace l'intérieur de ce fichier par un abonnement temps réel
+à Firestore. Aucun écran ne change.
+
+### Un piège des feuilles modales (form sheet)
+
+Une `formSheet` qui contient une zone de défilement **n'accepte que deux vues
+enfants**, et React Native « aplatit » les vues qui n'ont pas de style propre.
+Sans `collapsable={false}` sur l'en-tête, celui-ci sort de la mise en page et le
+contenu défile par-dessus. RNScreens le signale dans les logs — il faut les lire.
+
+Autre conséquence : `KeyboardAvoidingView` ne fonctionne pas dans une feuille
+modale (ses calculs sont en coordonnées écran). On utilise
+`automaticallyAdjustKeyboardInsets` sur la `ScrollView`, le mécanisme iOS natif.
 
 ### Pourquoi un dossier `domain/`
 
@@ -102,7 +132,7 @@ interpole la couleur. La pastille se colore progressivement pendant que le doigt
 ## Feuille de route
 
 - [x] **Étape 1** — Projet, architecture, design system, tableau à 4 colonnes (données d'essai)
-- [ ] **Étape 2** — Création / édition d'une tâche : titre, importance, couleur, assignation
+- [x] **Étape 2** — Création / édition / suppression : titre, note, importance, couleur, assignation, colonne
 - [ ] **Étape 3** — Glisser-déposer entre colonnes
 - [ ] **Étape 4** — Firebase : authentification + Firestore en temps réel
 - [ ] **Étape 5** — Notifications push quand l'autre crée une tâche

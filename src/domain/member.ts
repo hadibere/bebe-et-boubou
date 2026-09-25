@@ -19,6 +19,13 @@ export const MEMBERS: Member[] = [
   { id: 'boubou', name: 'Boubou', avatar: '🐻', color: 'sky' },
 ];
 
+/**
+ * Qui se sert de l'app sur CET appareil.
+ * A l'etape 4 cette constante disparaitra au profit de l'utilisateur
+ * connecte via Firebase Auth — c'est le seul endroit a changer.
+ */
+export const CURRENT_MEMBER_ID = 'bebe';
+
 export function findMember(id: string | null): Member | undefined {
   if (!id) return undefined;
   return MEMBERS.find((member) => member.id === id);

@@ -83,3 +83,15 @@ export function countByStatus(tasks: Task[]): Record<TaskStatus, number> {
   for (const task of tasks) counts[task.status] += 1;
   return counts;
 }
+
+/** Position a donner a une tache qui arrive dans une colonne : tout en bas. */
+export function nextOrderIn(tasks: Task[], status: TaskStatus): number {
+  const orders = tasks.filter((task) => task.status === status).map((task) => task.order);
+  return orders.length === 0 ? 0 : Math.max(...orders) + 1;
+}
+
+/**
+ * Ce qu'on saisit dans le formulaire : une tache SANS les champs
+ * que le systeme calcule lui-meme (identifiant, date, position).
+ */
+export type TaskDraft = Omit<Task, 'id' | 'createdAt' | 'order'>;
