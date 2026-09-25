@@ -9,20 +9,31 @@ interface BoardColumnProps {
   status: TaskStatus;
   tasks: Task[];
   width: number;
+  /** Fige pendant qu'une carte est soulevee. */
+  scrollEnabled?: boolean;
   onTaskPress?: (task: Task) => void;
+  onTaskDrop?: (task: Task, statusIndex: number) => void;
 }
 
 /** Une colonne = une page plein ecran du tableau. */
-export function BoardColumn({ status, tasks, width, onTaskPress }: BoardColumnProps) {
+export function BoardColumn({
+  status,
+  tasks,
+  width,
+  scrollEnabled = true,
+  onTaskPress,
+  onTaskDrop,
+}: BoardColumnProps) {
   return (
     <View style={{ width }}>
       <FlatList
         data={tasks}
         keyExtractor={(task) => task.id}
         renderItem={({ item, index }) => (
-          <TaskCard task={item} index={index} onPress={onTaskPress} />
+          <TaskCard task={item} index={index} onPress={onTaskPress} onDrop={onTaskDrop} />
         )}
         contentContainerStyle={styles.list}
+        scrollEnabled={scrollEnabled}
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={<EmptyColumn status={status} />}
       />

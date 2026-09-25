@@ -13,20 +13,45 @@ import { MemberAvatar } from '@/components/ui/MemberAvatar';
 import { PawPrint } from '@/components/ui/PawPrint';
 import { useTasks } from '@/data/tasks/TasksProvider';
 import { MEMBERS } from '@/domain/member';
-import { countByStatus, TASK_STATUSES, tasksForStatus } from '@/domain/task';
+import { countByStatus, TASK_STATUSES, tasksForStatus, type Task } from '@/domain/task';
 import { haptics } from '@/lib/haptics';
 import { motion } from '@/theme/tokens';
 import { BoardColumn } from './components/BoardColumn';
 import { ColumnTabs } from './components/ColumnTabs';
+import { DragPreview } from './components/DragPreview';
+import { DropBar } from './components/DropBar';
+import { DragProvider, useDrag } from './drag/DragContext';
 
+/**
+ * BoardScreen n'est qu'une enveloppe : le vrai contenu doit se trouver
+ * A L'INTERIEUR de DragProvider pour pouvoir appeler useDrag().
+ */
 export function BoardScreen() {
+  return (
+    <DragProvider>
+      <Board />
+    </DragProvider>
+  );
+}
+
+function Board() {
   const { width } = useWindowDimensions();
+  const { rt } = useUnistyles();
   const scrollRef = useRef<ScrollView>(null);
 
   // L'ecran ne sait pas d'ou viennent les taches : c'est tout l'interet
   // de passer par ce hook. A l'etape 4, Firestore prendra la place
   // sans que cette ligne change.
-  const { tasks } = useTasks();
+  const { tasks, moveTask } = useTasks();
+
+  // Pendant qu'une carte est soulevee, on fige les deux defilements :
+  // sinon le moindre mouvement du doigt ferait glisser le tableau.
+  const { draggedTask } = useDrag();
+  const isDragging = draggedTask !== null;
+
+  const handleDrop = (task: Task, statusIndex: number) => {
+    moveTask(task.id, TASK_STATUSES[statusIndex]);
+  };
 
   const counts = useMemo(() => countByStatus(tasks), [tasks]);
 
@@ -55,6 +80,7 @@ export function BoardScreen() {
         horizontal
         pagingEnabled
         showsHorizontalScrollIndicator={false}
+        scrollEnabled={!isDragging}
         onScroll={scrollHandler}
         // 16ms = une mise a jour par image a 60 fps. Indispensable pour que
         // l'animation des onglets soit lisse et non saccadee.
@@ -66,12 +92,18 @@ export function BoardScreen() {
             status={status}
             tasks={tasksForStatus(tasks, status)}
             width={width}
+            scrollEnabled={!isDragging}
             onTaskPress={(task) => router.push({ pathname: '/task/[id]', params: { id: task.id } })}
+            onTaskDrop={handleDrop}
           />
         ))}
       </Animated.ScrollView>
 
       <AddTaskButton />
+
+      {/* Les deux couches du glisser-deposer, au-dessus de tout le reste. */}
+      <DropBar topInset={rt.insets.top} />
+      <DragPreview />
     </View>
   );
 }

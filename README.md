@@ -49,9 +49,13 @@ src/
     board/
       BoardScreen.tsx     L'écran assemblé
       components/         Composants qui n'existent que pour le tableau
-        TaskCard.tsx
+        TaskCard.tsx      La carte, avec son geste de déplacement
         ColumnTabs.tsx
         BoardColumn.tsx
+        DropBar.tsx       Les 4 cibles, visibles pendant le déplacement
+        DragPreview.tsx   La carte qui suit le doigt
+      drag/
+        DragContext.tsx   L'état partagé du geste
     tasks/
       NewTaskScreen.tsx   Création
       EditTaskScreen.tsx  Modification + suppression
@@ -88,6 +92,25 @@ fonctions : `tasks`, `createTask`, `updateTask`, `deleteTask`, `moveTask`.
 
 À l'étape 4, on remplace l'intérieur de ce fichier par un abonnement temps réel
 à Firestore. Aucun écran ne change.
+
+### Comment fonctionne le glisser-déposer
+
+Sur iPhone on ne voit qu'une colonne à la fois : faire glisser une carte « vers
+la colonne d'à côté » n'aurait aucun sens, la cible est hors écran. Alors :
+
+1. un appui maintenu de 220 ms soulève la carte (`activateAfterLongPress`) ;
+2. une barre apparaît en haut avec les 4 colonnes ;
+3. les 4 cibles font exactement un quart de la largeur, donc savoir laquelle est
+   survolée se réduit à une division — aucune mesure de vue, aucun calcul fragile ;
+4. on relâche sur une cible pour déplacer, ailleurs pour annuler.
+
+Le tap simple continue d'ouvrir le formulaire : `Gesture.Exclusive` fait que les
+deux gestes ne se marchent pas dessus.
+
+**Le détail qui évite un bug méchant** : la remise à zéro se fait dans
+`onFinalize`, jamais dans `onEnd`. `onEnd` ne se déclenche pas si le geste est
+interrompu (appel entrant, retour à l'accueil) — la carte resterait soulevée
+pour toujours et le tableau ne défilerait plus.
 
 ### Un piège des feuilles modales (form sheet)
 
@@ -133,7 +156,7 @@ interpole la couleur. La pastille se colore progressivement pendant que le doigt
 
 - [x] **Étape 1** — Projet, architecture, design system, tableau à 4 colonnes (données d'essai)
 - [x] **Étape 2** — Création / édition / suppression : titre, note, importance, couleur, assignation, colonne
-- [ ] **Étape 3** — Glisser-déposer entre colonnes
+- [x] **Étape 3** — Glisser-déposer entre colonnes (appui long + barre de dépôt)
 - [ ] **Étape 4** — Firebase : authentification + Firestore en temps réel
 - [ ] **Étape 5** — Notifications push quand l'autre crée une tâche
 - [ ] **Étape 6** — Icône, écran de démarrage, build EAS et TestFlight
