@@ -42,6 +42,13 @@
         "projectId": "0283cfaa-c664-4fbc-8bd9-69e88a3a6ddd"
       }
     },
-    "owner": "hadibere"
+    "owner": "hadibere",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/0283cfaa-c664-4fbc-8bd9-69e88a3a6ddd"
+    },
+    "android": {}
   }
 }
