@@ -47,6 +47,10 @@ src/
       config.ts           Lecture et validation des variables d'environnement
       app.ts              Initialisation Firebase (+ bascule émulateurs)
     auth/AuthProvider.tsx    Session : useAuth() + messages d'erreur en français
+    notifications/
+      push.ts             Autorisation, jeton, envoi via le service Expo
+      taskAlerts.ts       QUI prévenir et avec quel texte (fonctions pures)
+      PushNotifications.tsx  Publie le jeton, ouvre la tâche au tap
     members/MembersProvider.tsx  Les deux membres, lus depuis Firestore
     tasks/
       TasksProvider.tsx   LE contrat : useTasks() + Firestore temps réel
@@ -179,6 +183,54 @@ Mets `EXPO_PUBLIC_USE_FIREBASE_EMULATOR=1` dans `.env` : l'app tape alors sur
 les émulateurs locaux, avec les vraies règles chargées. Dans ce mode seulement,
 l'écran de connexion arrive pré-rempli avec le compte de test.
 
+## Notifications
+
+### Ce qui déclenche une notification
+
+| Événement | Message |
+|---|---|
+| L'autre crée une tâche | « 🐻 Boubou a ajouté une tâche » (+ « · pour toi » si assignée) |
+| Une tâche t'est assignée | « 🐻 Boubou t'a assigné une tâche » |
+| Une tâche passe en « Bloqué » | « 🙀 Une tâche est bloquée » |
+
+Taper la notification ouvre directement la tâche : son identifiant voyage
+dans la charge utile.
+
+### Pourquoi l'envoi part de l'app
+
+Pas de Cloud Function, donc **pas besoin du plan Blaze** ni de carte
+bancaire. L'app de celui qui agit appelle directement le service d'envoi
+d'Expo. Contrepartie assumée : si le réseau coupe à cet instant précis, la
+notification est perdue — la tâche, elle, est bien enregistrée.
+
+### La règle de sécurité qui va avec
+
+Chacun doit pouvoir publier le jeton de son appareil dans son document
+`members`, alors que cette collection est verrouillée en écriture. La règle
+est donc volontairement étroite :
+
+```
+allow update: if isMember()
+  && request.auth.uid == memberId
+  && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['pushToken'])
+```
+
+Uniquement son propre document, uniquement ce champ. Création et suppression
+restent impossibles depuis l'app.
+
+### Tester
+
+⚠️ **L'obtention du jeton ne fonctionne pas sur le simulateur iOS 26** — c'est
+un bug d'Apple, signalé par expo-notifications lui-même. Il faut un vrai
+iPhone.
+
+En revanche, on peut vérifier l'affichage et la navigation en injectant une
+notification directement :
+
+```bash
+xcrun simctl push <UDID> com.hadibere.bebeboubou notification.apns
+```
+
 ## Le trio qui rend l'interface fluide
 
 En React Native, la fluidité ne vient pas de la bibliothèque de styles :
@@ -208,5 +260,5 @@ interpole la couleur. La pastille se colore progressivement pendant que le doigt
 - [x] **Étape 2** — Création / édition / suppression : titre, note, importance, couleur, assignation, colonne
 - [x] **Étape 3** — Glisser-déposer entre colonnes (appui long + barre de dépôt)
 - [x] **Étape 4** — Firebase : authentification + Firestore en temps réel
-- [ ] **Étape 5** — Notifications push quand l'autre crée une tâche
+- [x] **Étape 5** — Notifications : création, assignation, blocage (jeton à valider sur iPhone réel)
 - [ ] **Étape 6** — Icône, écran de démarrage, build EAS et TestFlight

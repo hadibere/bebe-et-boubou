@@ -21,10 +21,18 @@
       "expo-router",
       "expo-font",
       "expo-splash-screen",
+      "expo-notifications",
       "react-native-edge-to-edge"
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "0283cfaa-c664-4fbc-8bd9-69e88a3a6ddd"
+      }
+    },
+    "owner": "hadibere"
   }
 }

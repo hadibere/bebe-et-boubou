@@ -56,6 +56,7 @@ export function MembersProvider({ children }: { children: ReactNode }) {
               color: (MEMBER_COLORS as readonly string[]).includes(color)
                 ? (color as MemberColor)
                 : FALLBACK_MEMBER.color,
+              pushToken: typeof data.pushToken === 'string' ? data.pushToken : undefined,
             };
           }),
         });

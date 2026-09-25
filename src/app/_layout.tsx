@@ -12,6 +12,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { AuthProvider, useAuth } from '@/data/auth/AuthProvider';
 import { MembersProvider } from '@/data/members/MembersProvider';
+import { PushNotifications } from '@/data/notifications/PushNotifications';
 import { TasksProvider } from '@/data/tasks/TasksProvider';
 
 // On garde l'ecran de demarrage tant que les polices ne sont pas pretes ET
@@ -57,6 +58,9 @@ export default function RootLayout() {
         <MembersProvider>
           <TasksProvider>
             <StatusBar style="dark" />
+            {/* N'affiche rien : enregistre l'appareil et ouvre la tache
+                quand on tape une notification. */}
+            <PushNotifications />
             <RootNavigator />
           </TasksProvider>
         </MembersProvider>

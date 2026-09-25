@@ -39,11 +39,22 @@ service cloud.firestore {
 
     /**
      * Les membres du foyer.
-     * Lecture par les membres, ecriture uniquement depuis la console Firebase.
+     *
+     * Creation et suppression restent impossibles depuis l'app : c'est ce
+     * qui empeche un inconnu de s'ajouter lui-meme.
+     *
+     * Une seule exception : chacun peut publier le jeton de notification de
+     * SON appareil. La regle le verrouille serieusement — uniquement sur son
+     * propre document, et uniquement ce champ-la. Impossible de se renommer,
+     * de changer de couleur, ni de toucher au document de l'autre.
      */
     match /members/{memberId} {
       allow read: if isMember();
-      allow write: if false;
+      allow create, delete: if false;
+      allow update: if isMember()
+        && request.auth.uid == memberId
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['pushToken'])
+        && request.resource.data.pushToken is string;
     }
 
     /** Les taches, partagees par les deux membres. */

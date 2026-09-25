@@ -16,6 +16,11 @@ export interface Member {
   avatar: string;
   /** Cle d'une couleur de `taskColors`, pour reconnaitre la personne d'un coup d'oeil. */
   color: MemberColor;
+  /**
+   * Jeton de notification de SON appareil, ecrit par son app a la connexion.
+   * Absent tant qu'elle n'a pas accepte les notifications.
+   */
+  pushToken?: string;
 }
 
 export const MEMBER_COLORS = ['rose', 'sky'] as const;

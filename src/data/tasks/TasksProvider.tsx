@@ -10,6 +10,13 @@ import { createContext, use, useCallback, useEffect, useMemo, useState, type Rea
 
 import { useAuth } from '@/data/auth/AuthProvider';
 import { db } from '@/data/firebase/app';
+import { useMembers } from '@/data/members/MembersProvider';
+import {
+  alertsForCreatedTask,
+  alertsForMovedTask,
+  alertsForUpdatedTask,
+} from '@/data/notifications/taskAlerts';
+import { sendPushMessages, type PushMessage } from '@/data/notifications/push';
 import { nextOrderIn, type Task, type TaskDraft, type TaskStatus } from '@/domain/task';
 import { draftToDocument, taskFromDocument } from './mapping';
 
@@ -56,8 +63,20 @@ function reportWriteFailure(operation: string) {
   };
 }
 
+/**
+ * Envoie les notifications sans jamais bloquer l'interface ni faire echouer
+ * l'action. Une notification perdue est genante ; une tache non enregistree
+ * le serait beaucoup plus.
+ */
+function notify(messages: PushMessage[]) {
+  sendPushMessages(messages).catch((error) => {
+    console.warn('[push] envoi impossible :', error);
+  });
+}
+
 export function TasksProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
+  const { members } = useMembers();
 
   /**
    * On memorise POUR QUEL utilisateur les taches ont ete recues.
@@ -106,13 +125,22 @@ export function TasksProvider({ children }: { children: ReactNode }) {
   const createTask = useCallback(
     (draft: TaskDraft) => {
       const order = nextOrderIn(tasks, draft.status);
+      const actorId = user?.uid;
 
       addDoc(collection(db, TASKS_COLLECTION), {
         ...draftToDocument(draft, order),
         createdAt: Date.now(),
-      }).catch(reportWriteFailure('création'));
+      })
+        .then((created) => {
+          // On attend l'ecriture pour disposer du vrai identifiant :
+          // c'est lui qui permet d'ouvrir la tache en tapant la notification.
+          if (actorId) {
+            notify(alertsForCreatedTask(draft, created.id, actorId, members));
+          }
+        })
+        .catch(reportWriteFailure('création'));
     },
-    [tasks],
+    [tasks, user, members],
   );
 
   const updateTask = useCallback(
@@ -125,11 +153,17 @@ export function TasksProvider({ children }: { children: ReactNode }) {
           ? nextOrderIn(tasks, draft.status)
           : (current?.order ?? 0);
 
-      updateDoc(doc(db, TASKS_COLLECTION, id), draftToDocument(draft, order)).catch(
-        reportWriteFailure('modification'),
-      );
+      const actorId = user?.uid;
+
+      updateDoc(doc(db, TASKS_COLLECTION, id), draftToDocument(draft, order))
+        .then(() => {
+          if (actorId && current) {
+            notify(alertsForUpdatedTask(current, draft, actorId, members));
+          }
+        })
+        .catch(reportWriteFailure('modification'));
     },
-    [tasks],
+    [tasks, user, members],
   );
 
   const deleteTask = useCallback((id: string) => {
@@ -138,12 +172,21 @@ export function TasksProvider({ children }: { children: ReactNode }) {
 
   const moveTask = useCallback(
     (id: string, status: TaskStatus) => {
+      const moved = tasks.find((task) => task.id === id);
+      const actorId = user?.uid;
+
       updateDoc(doc(db, TASKS_COLLECTION, id), {
         status,
         order: nextOrderIn(tasks, status),
-      }).catch(reportWriteFailure('déplacement'));
+      })
+        .then(() => {
+          if (actorId && moved) {
+            notify(alertsForMovedTask(moved, status, actorId, members));
+          }
+        })
+        .catch(reportWriteFailure('déplacement'));
     },
-    [tasks],
+    [tasks, user, members],
   );
 
   const value = useMemo<TasksContextValue>(
