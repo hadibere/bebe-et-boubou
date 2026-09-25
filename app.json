@@ -12,7 +12,7 @@
     ],
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.hadibere.bebeboubou",
+      "bundleIdentifier": "com.hadibere.bebeetboubou",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       },

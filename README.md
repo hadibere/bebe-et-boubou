@@ -251,7 +251,7 @@ En revanche, on peut vérifier l'affichage et la navigation en injectant une
 notification directement :
 
 ```bash
-xcrun simctl push <UDID> com.hadibere.bebeboubou notification.apns
+xcrun simctl push <UDID> com.hadibere.bebeetboubou notification.apns
 ```
 
 ## Le trio qui rend l'interface fluide
