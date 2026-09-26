@@ -7,7 +7,9 @@ import { PawPrint } from '@/components/ui/PawPrint';
 import { PriorityPaws } from '@/components/ui/PriorityPaws';
 import { useAuth } from '@/data/auth/AuthProvider';
 import { useMembers } from '@/data/members/MembersProvider';
+import { combine } from '@/domain/calendar';
 import { formatReminder, REMINDER_PRESETS } from '@/domain/reminder';
+import { ReminderPicker } from './ReminderPicker';
 import {
   PRIORITY_LABELS,
   STATUS_EMOJI,
@@ -50,6 +52,16 @@ export function TaskForm({ initialTask, title: heading, submitLabel, onSubmit, o
   const [assigneeId, setAssigneeId] = useState<string | null>(initialTask?.assigneeId ?? null);
   const [status, setStatus] = useState<TaskStatus>(initialTask?.status ?? 'todo');
   const [remindAt, setRemindAt] = useState<number | null>(initialTask?.remindAt ?? null);
+  const [showPicker, setShowPicker] = useState(false);
+
+  /** Point de depart du selecteur quand aucun rappel n'existe : l'heure ronde suivante. */
+  const openPicker = () => {
+    setShowPicker(true);
+    if (remindAt === null) {
+      const now = new Date();
+      setRemindAt(combine(now, now.getHours() + 1, 0).getTime());
+    }
+  };
 
   const trimmedTitle = title.trim();
   const canSubmit = trimmedTitle.length > 0;
@@ -183,7 +195,10 @@ export function TaskForm({ initialTask, title: heading, submitLabel, onSubmit, o
             <Chip
               label="Aucun"
               selected={remindAt === null}
-              onPress={() => setRemindAt(null)}
+              onPress={() => {
+                setRemindAt(null);
+                setShowPicker(false);
+              }}
               softColor={theme.colors.surfaceAlt}
               deepColor={theme.colors.textMuted}
             />
@@ -197,12 +212,29 @@ export function TaskForm({ initialTask, title: heading, submitLabel, onSubmit, o
                   remindAt !== null &&
                   Math.abs(preset.resolve(new Date()).getTime() - remindAt) < 60_000
                 }
-                onPress={() => setRemindAt(preset.resolve(new Date()).getTime())}
+                onPress={() => {
+                  setRemindAt(preset.resolve(new Date()).getTime());
+                  setShowPicker(false);
+                }}
                 softColor={theme.taskColors.lavender.soft}
                 deepColor={theme.taskColors.lavender.deep}
               />
             ))}
+            <Chip
+              label="Choisir…"
+              selected={showPicker}
+              onPress={openPicker}
+              softColor={theme.taskColors.lavender.soft}
+              deepColor={theme.taskColors.lavender.deep}
+            />
           </View>
+
+          {showPicker && remindAt !== null ? (
+            <ReminderPicker
+              value={new Date(remindAt)}
+              onChange={(next) => setRemindAt(next.getTime())}
+            />
+          ) : null}
 
           {remindAt !== null ? (
             <Text style={styles.reminderSummary}>⏰ Vous serez prévenus {formatReminder(remindAt)}</Text>

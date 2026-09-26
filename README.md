@@ -221,9 +221,19 @@ dans la charge utile.
 
 ### Les rappels
 
-Un rappel se pose sur une tâche via des raccourcis — *Dans 1 h*, *Ce soir
-19 h*, *Demain 9 h*, *Samedi 10 h*. Le calcul des échéances est dans
-`src/domain/reminder.ts` : des fonctions pures, sans notification ni React.
+Un rappel se pose via des raccourcis — *Dans 1 h*, *Ce soir 19 h*,
+*Demain 9 h*, *Samedi 10 h* — ou via **Choisir…**, qui déplie un calendrier
+et un choix d'heure précis.
+
+Le calcul des échéances vit dans `src/domain/reminder.ts` et l'arithmétique
+du calendrier dans `src/domain/calendar.ts` : des fonctions pures, sans
+notification ni React. Les bugs de calendrier étant sournois (changements
+de mois, semaines à cheval), il valait mieux pouvoir les relire isolément.
+
+Le sélecteur est **écrit en JavaScript** plutôt qu'emprunté à iOS. Un
+module natif aurait imposé un build complet et un passage par TestFlight à
+chaque évolution ; là, tout se livre en mise à jour immédiate — et
+l'apparence suit le thème de l'app au lieu de trancher avec.
 
 Ce sont des **notifications locales** : chaque téléphone se prévient
 lui-même à l'heure dite. Aucun serveur, aucun coût, et ça fonctionne même
