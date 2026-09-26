@@ -68,6 +68,11 @@ export interface Task {
   createdAt: number;
   /** Position dans sa colonne — c'est ce que le glisser-deposer modifiera. */
   order: number;
+  /**
+   * Instant du rappel, en millisecondes. Absent = aucun rappel.
+   * Chaque telephone programme sa propre notification locale a partir de la.
+   */
+  remindAt?: number;
 }
 
 /* --------------------------------- Utilitaires ------------------------------ */

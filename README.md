@@ -219,6 +219,23 @@ l'écran de connexion arrive pré-rempli avec le compte de test.
 Taper la notification ouvre directement la tâche : son identifiant voyage
 dans la charge utile.
 
+### Les rappels
+
+Un rappel se pose sur une tâche via des raccourcis — *Dans 1 h*, *Ce soir
+19 h*, *Demain 9 h*, *Samedi 10 h*. Le calcul des échéances est dans
+`src/domain/reminder.ts` : des fonctions pures, sans notification ni React.
+
+Ce sont des **notifications locales** : chaque téléphone se prévient
+lui-même à l'heure dite. Aucun serveur, aucun coût, et ça fonctionne même
+hors connexion une fois le rappel posé. Les deux téléphones programment les
+mêmes rappels chacun de leur côté, donc vous êtes prévenus tous les deux.
+
+`ReminderScheduler` resynchronise à chaque changement venu de Firestore :
+une tâche terminée, supprimée, ou dont l'heure change voit son rappel mis à
+jour sans code dédié. La stratégie est « on annule tout et on reprogramme »
+plutôt que de tenir un registre d'identifiants, qui dériverait à la première
+erreur.
+
 ### Pourquoi l'envoi part de l'app
 
 Pas de Cloud Function, donc **pas besoin du plan Blaze** ni de carte
@@ -321,3 +338,4 @@ reconstruire sous un nouvel identifiant. C'est déjà arrivé une fois.
 - [x] **Étape 4** — Firebase : authentification + Firestore en temps réel
 - [x] **Étape 5** — Notifications : création, assignation, blocage — **validé sur iPhone réel**
 - [x] **Étape 6** — Icône, écran de démarrage, build EAS, TestFlight — **l'app tourne sur vos deux iPhones**
+- [x] **Rappels** — échéance par tâche, notification locale sur les deux téléphones

@@ -34,7 +34,8 @@ service cloud.firestore {
         && task.color in ['rose', 'lavender', 'mint', 'butter', 'sky', 'peach']
         && (task.assigneeId == null || task.assigneeId is string)
         && task.createdBy is string
-        && task.order is number;
+        && task.order is number
+        && (task.remindAt == null || task.remindAt is number);
     }
 
     /**

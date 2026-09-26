@@ -13,6 +13,7 @@ import { StyleSheet } from 'react-native-unistyles';
 import { MemberAvatar } from '@/components/ui/MemberAvatar';
 import { PriorityPaws } from '@/components/ui/PriorityPaws';
 import { useDrag } from '@/features/board/drag/DragContext';
+import { formatReminder, isUpcoming } from '@/domain/reminder';
 import { TASK_STATUSES, type Task } from '@/domain/task';
 import { haptics } from '@/lib/haptics';
 import { motion } from '@/theme/tokens';
@@ -139,7 +140,14 @@ export function TaskCard({ task, index, onPress, onDrop }: TaskCardProps) {
               ) : null}
 
               <View style={styles.footer}>
-                <PriorityPaws priority={task.priority} />
+                <View style={styles.footerLeft}>
+                  <PriorityPaws priority={task.priority} />
+                  {/* Un rappel deja passe n'est plus une information utile :
+                      on ne l'affiche que s'il est encore a venir. */}
+                  {task.remindAt !== undefined && isUpcoming(task.remindAt) ? (
+                    <Text style={styles.reminder}>⏰ {formatReminder(task.remindAt)}</Text>
+                  ) : null}
+                </View>
                 <MemberAvatar memberId={task.assigneeId} />
               </View>
             </View>
@@ -209,5 +217,15 @@ const styles = StyleSheet.create((theme) => ({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+  },
+  footerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+  },
+  reminder: {
+    fontFamily: theme.fontFamily.bold,
+    fontSize: theme.fontSize.xs,
+    color: theme.taskColors.lavender.deep,
   },
 }));

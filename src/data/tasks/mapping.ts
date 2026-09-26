@@ -44,6 +44,7 @@ export function taskFromDocument(snapshot: QueryDocumentSnapshot<DocumentData>):
     createdBy: typeof data.createdBy === 'string' ? data.createdBy : '',
     createdAt: typeof data.createdAt === 'number' ? data.createdAt : 0,
     order: typeof data.order === 'number' ? data.order : 0,
+    remindAt: typeof data.remindAt === 'number' ? data.remindAt : undefined,
   };
 }
 
@@ -59,5 +60,7 @@ export function draftToDocument(draft: TaskDraft, order: number) {
     assigneeId: draft.assigneeId,
     createdBy: draft.createdBy,
     order,
+    // `null` et non `undefined` : Firestore rejette undefined.
+    remindAt: draft.remindAt ?? null,
   };
 }

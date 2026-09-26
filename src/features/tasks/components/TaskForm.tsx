@@ -7,6 +7,7 @@ import { PawPrint } from '@/components/ui/PawPrint';
 import { PriorityPaws } from '@/components/ui/PriorityPaws';
 import { useAuth } from '@/data/auth/AuthProvider';
 import { useMembers } from '@/data/members/MembersProvider';
+import { formatReminder, REMINDER_PRESETS } from '@/domain/reminder';
 import {
   PRIORITY_LABELS,
   STATUS_EMOJI,
@@ -48,6 +49,7 @@ export function TaskForm({ initialTask, title: heading, submitLabel, onSubmit, o
   const [color, setColor] = useState<TaskColor>(initialTask?.color ?? 'rose');
   const [assigneeId, setAssigneeId] = useState<string | null>(initialTask?.assigneeId ?? null);
   const [status, setStatus] = useState<TaskStatus>(initialTask?.status ?? 'todo');
+  const [remindAt, setRemindAt] = useState<number | null>(initialTask?.remindAt ?? null);
 
   const trimmedTitle = title.trim();
   const canSubmit = trimmedTitle.length > 0;
@@ -62,6 +64,7 @@ export function TaskForm({ initialTask, title: heading, submitLabel, onSubmit, o
       color,
       assigneeId,
       status,
+      remindAt: remindAt ?? undefined,
       // On prend l'UID directement de la session : il existe toujours,
       // alors que le document `members` pourrait ne pas etre encore charge.
       createdBy: initialTask?.createdBy ?? user?.uid ?? '',
@@ -175,6 +178,37 @@ export function TaskForm({ initialTask, title: heading, submitLabel, onSubmit, o
           </View>
         </Field>
 
+        <Field label="Un rappel ?">
+          <View style={styles.chipRow}>
+            <Chip
+              label="Aucun"
+              selected={remindAt === null}
+              onPress={() => setRemindAt(null)}
+              softColor={theme.colors.surfaceAlt}
+              deepColor={theme.colors.textMuted}
+            />
+            {REMINDER_PRESETS.map((preset) => (
+              <Chip
+                key={preset.key}
+                label={preset.label}
+                // On compare a la minute pres : l'heure calculee par un
+                // raccourci ne retombe jamais exactement sur la seconde.
+                selected={
+                  remindAt !== null &&
+                  Math.abs(preset.resolve(new Date()).getTime() - remindAt) < 60_000
+                }
+                onPress={() => setRemindAt(preset.resolve(new Date()).getTime())}
+                softColor={theme.taskColors.lavender.soft}
+                deepColor={theme.taskColors.lavender.deep}
+              />
+            ))}
+          </View>
+
+          {remindAt !== null ? (
+            <Text style={styles.reminderSummary}>⏰ Vous serez prévenus {formatReminder(remindAt)}</Text>
+          ) : null}
+        </Field>
+
         <Pressable
           onPress={handleSubmit}
           disabled={!canSubmit}
@@ -270,6 +304,11 @@ const styles = StyleSheet.create((theme, rt) => ({
   },
   chipEmoji: {
     fontSize: theme.fontSize.md,
+  },
+  reminderSummary: {
+    fontFamily: theme.fontFamily.regular,
+    fontSize: theme.fontSize.sm,
+    color: theme.taskColors.lavender.deep,
   },
   deleteButton: {
     alignSelf: 'center',
