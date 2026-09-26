@@ -77,23 +77,30 @@ export function TaskCard({ task, index, onPress, onDrop }: TaskCardProps) {
       runOnJS(endDrag)();
     });
 
-  const tapGesture = Gesture.Tap().onEnd(() => {
-    runOnJS(haptics.select)();
-    if (onPress) runOnJS(onPress)(task);
-  });
-
-  // Le retour visuel a l'appui, commun aux deux gestes.
-  const pressGesture = Gesture.LongPress()
-    .minDuration(0)
-    .maxDistance(10_000)
+  /**
+   * Le retour visuel a l'appui est porte par le TAP, et c'est important.
+   *
+   * Une premiere version utilisait un LongPress avec minDuration(0) : il
+   * s'activait des le toucher et ne s'annulait jamais au mouvement. Or un
+   * geste actif empeche la liste de defiler — il fallait s'y reprendre a
+   * deux fois pour faire glisser la colonne.
+   *
+   * Le tap, lui, echoue des que le doigt bouge : le defilement reprend
+   * immediatement la main, et `onFinalize` remet la carte a plat.
+   */
+  const tapGesture = Gesture.Tap()
     .onBegin(() => {
       pressed.value = 1;
     })
     .onFinalize(() => {
       pressed.value = 0;
+    })
+    .onEnd(() => {
+      runOnJS(haptics.select)();
+      if (onPress) runOnJS(onPress)(task);
     });
 
-  const gesture = Gesture.Simultaneous(pressGesture, Gesture.Exclusive(panGesture, tapGesture));
+  const gesture = Gesture.Exclusive(panGesture, tapGesture);
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: withSpring(pressed.value === 1 ? 0.96 : 1, motion.springBouncy) }],

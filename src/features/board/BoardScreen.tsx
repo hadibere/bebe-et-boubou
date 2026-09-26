@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { useMemo, useRef } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native';
 import Animated, {
   useAnimatedScrollHandler,
@@ -37,6 +37,16 @@ export function BoardScreen() {
 
 function Board() {
   const { width } = useWindowDimensions();
+
+  /**
+   * On MESURE la hauteur disponible au lieu de la deduire du flex.
+   *
+   * Une colonne doit connaitre sa hauteur exacte, sinon sa liste s'etire a
+   * la taille de son contenu et ne defile jamais. On procede pour la hauteur
+   * comme on le fait deja pour la largeur : une valeur explicite, pas une
+   * esperance de mise en page.
+   */
+  const [pagerHeight, setPagerHeight] = useState(0);
   const { rt } = useUnistyles();
   const scrollRef = useRef<ScrollView>(null);
 
@@ -89,8 +99,16 @@ function Board() {
         ref={scrollRef}
         horizontal
         pagingEnabled
+        // Occupe toute la hauteur restante : c'est cette hauteur que les
+        // colonnes heritent, et donc celle que la liste peut faire defiler.
+        style={styles.pager}
+        onLayout={(event) => setPagerHeight(event.nativeEvent.layout.height)}
         showsHorizontalScrollIndicator={false}
         scrollEnabled={!isDragging}
+        // Verrouille le geste sur un seul axe. Sans ca, un doigt qui descend
+        // legerement de travers entraine le tableau lateralement au lieu de
+        // faire defiler la colonne.
+        directionalLockEnabled
         onScroll={scrollHandler}
         // 16ms = une mise a jour par image a 60 fps. Indispensable pour que
         // l'animation des onglets soit lisse et non saccadee.
@@ -102,6 +120,7 @@ function Board() {
             status={status}
             tasks={tasksForStatus(tasks, status)}
             width={width}
+            height={pagerHeight}
             scrollEnabled={!isDragging}
             onTaskPress={(task) => router.push({ pathname: '/task/[id]', params: { id: task.id } })}
             onTaskDrop={handleDrop}
@@ -219,6 +238,9 @@ const styles = StyleSheet.create((theme, rt) => ({
     // `rt.insets` = les marges de securite de l'iPhone (encoche, barre du bas).
     // Unistyles les fournit directement, pas besoin d'englober dans un SafeAreaView.
     paddingTop: rt.insets.top + theme.spacing.sm,
+  },
+  pager: {
+    flex: 1,
   },
   header: {
     flexDirection: 'row',

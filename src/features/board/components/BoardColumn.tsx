@@ -9,6 +9,8 @@ interface BoardColumnProps {
   status: TaskStatus;
   tasks: Task[];
   width: number;
+  /** Hauteur disponible, mesuree par le tableau. Sans elle, rien ne defile. */
+  height: number;
   /** Fige pendant qu'une carte est soulevee. */
   scrollEnabled?: boolean;
   onTaskPress?: (task: Task) => void;
@@ -20,19 +22,24 @@ export function BoardColumn({
   status,
   tasks,
   width,
+  height,
   scrollEnabled = true,
   onTaskPress,
   onTaskDrop,
 }: BoardColumnProps) {
   return (
-    <View style={{ width }}>
+    <View style={{ width, height }}>
       <FlatList
         data={tasks}
         keyExtractor={(task) => task.id}
         renderItem={({ item, index }) => (
           <TaskCard task={item} index={index} onPress={onTaskPress} onDrop={onTaskDrop} />
         )}
-        contentContainerStyle={styles.list}
+        // `flex: 1` s'appuie sur la hauteur explicite de la colonne ci-dessus.
+        // Sans cette hauteur, la liste s'etire a la taille de son contenu,
+        // deborde de l'ecran, et n'a donc jamais rien a faire defiler.
+        style={styles.list}
+        contentContainerStyle={styles.listContent}
         scrollEnabled={scrollEnabled}
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={<EmptyColumn status={status} />}
@@ -66,6 +73,9 @@ function EmptyColumn({ status }: { status: TaskStatus }) {
 
 const styles = StyleSheet.create((theme) => ({
   list: {
+    flex: 1,
+  },
+  listContent: {
     paddingHorizontal: theme.spacing.lg,
     paddingTop: theme.spacing.sm,
     // De l'air en bas pour que la derniere carte ne soit pas sous le bouton "+"
