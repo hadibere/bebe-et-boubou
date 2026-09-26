@@ -245,7 +245,7 @@ restent impossibles depuis l'app.
 
 ⚠️ **L'obtention du jeton ne fonctionne pas sur le simulateur iOS 26** — c'est
 un bug d'Apple, signalé par expo-notifications lui-même. Il faut un vrai
-iPhone.
+iPhone. Validé de bout en bout via TestFlight le 26/09/2026.
 
 En revanche, on peut vérifier l'affichage et la navigation en injectant une
 notification directement :
@@ -319,5 +319,5 @@ reconstruire sous un nouvel identifiant. C'est déjà arrivé une fois.
 - [x] **Étape 2** — Création / édition / suppression : titre, note, importance, couleur, assignation, colonne
 - [x] **Étape 3** — Glisser-déposer entre colonnes (appui long + barre de dépôt)
 - [x] **Étape 4** — Firebase : authentification + Firestore en temps réel
-- [x] **Étape 5** — Notifications : création, assignation, blocage (jeton à valider sur iPhone réel)
-- [x] **Étape 6** — Icône, écran de démarrage, build EAS, envoi TestFlight
+- [x] **Étape 5** — Notifications : création, assignation, blocage — **validé sur iPhone réel**
+- [x] **Étape 6** — Icône, écran de démarrage, build EAS, TestFlight — **l'app tourne sur vos deux iPhones**
